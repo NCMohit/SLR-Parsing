@@ -1,6 +1,25 @@
+import networkx as nx
+import matplotlib.pyplot as plt
+
+def filter_rules(rules):
+	newrules = []
+	for i in rules:
+		rule = []
+		for j in i:
+			rule.append(j.replace("\n",""))
+		newrules.append(rule)
+	return newrules
+
+rules = []
+inputtext = open("rules.txt", "r")
+temprules = []
+for i in inputtext:
+	temprules.append(i.split(","))
+rules = filter_rules(temprules)
+
 #rules = [["S","dA","aB"],["A","bA","c"],["B","bB","c"]]
 globalsets = []
-rules = [["S","AA"],["A","aA","b"]]
+#rules = [["S","AA"],["A","aA","b"]]
 setcount = 0
 dfa_mapping_table = []
 set_mapping_table = []
@@ -80,20 +99,22 @@ def gen_new_initrules(arrow,aug_grammar):
 # 	newinitrules = gen_new_initrules(arrow,aug_grammar)
 # 	print(newinitrules)
 
-def get_aug_grammar_number(set_mapping_table,aug_grammar):
+def get_aug_grammar_number(set_mapping_table,initrule):
 	number = 100
 	for i in set_mapping_table:
-		if(i[1]==aug_grammar):
+		if(i[1][0]==initrule):
 			number = i[0]
 	return number
 
-def gen_slr(initrules,rules):
+def gen_slr(initrules,rules,prevset,prevarrow):
 	global setcount
 	global globalsets
 	sets = []
 	setcount += 1
+	thisset = setcount
 	aug_grammar = gen_aug_grammar(initrules,rules)
-	#print(aug_grammar)
+	if(prevset!=None):
+		dfa_mapping_table.append([prevset,prevarrow,setcount])
 	sets.append(aug_grammar)
 	globalsets.append(aug_grammar)
 	set_mapping_table.append([setcount,aug_grammar])
@@ -105,14 +126,27 @@ def gen_slr(initrules,rules):
 			if(newinitrules[0] in currentset):
 				flag = 1
 				if(newinitrules[0][-1][-1]!="."):
-					dfa_mapping_table.append([get_aug_grammar_number(set_mapping_table,aug_grammar),arrow,get_aug_grammar_number(set_mapping_table,aug_grammar)])
+					dfa_mapping_table.append([thisset,arrow,get_aug_grammar_number(set_mapping_table,newinitrules[0])])
 		if(flag==0):
-			nextsets = gen_slr(newinitrules,rules)
+			nextsets = gen_slr(newinitrules,rules,prevset= thisset,prevarrow= arrow)
 			sets = sets + nextsets[0]
-			dfa_mapping_table.append([get_aug_grammar_number(set_mapping_table,aug_grammar),arrow,get_aug_grammar_number(set_mapping_table,nextsets[0][0])])
+			#dfa_mapping_table.append([get_aug_grammar_number(set_mapping_table,aug_grammar),arrow,get_aug_grammar_number(set_mapping_table,nextsets[0][0])])
 	return [sets,setcount]
 
-sets = gen_slr([["S'",".S"]],rules)[0]
+def create_graph():
+	G = nx.DiGraph() 
+	edges = []
+	labels = {}
+	for i in dfa_mapping_table:
+		edges.append([i[0],i[2]])
+		G.add_edge(i[0],i[2])
+		labels[(i[0],i[2])] = i[1]
+	pos=nx.circular_layout(G)
+	nx.draw_networkx(G, with_label = True, node_color ='green') 
+	nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
+	plt.show()
+
+sets = gen_slr([["S'",".S"]],rules,prevset=None,prevarrow=None)[0]
 print("Sets mapping table (Mapping of numbers to set): ")
 for i in set_mapping_table:
 	print(i)
@@ -120,3 +154,4 @@ print("DFA mapping table: ")
 print("Here left element represents initial set number, middle represents arrow and right represents goto set number")
 for i in dfa_mapping_table:
 	print(i)
+create_graph()
