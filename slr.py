@@ -1,5 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+import follow
 
 def filter_rules(rules):
 	newrules = []
@@ -146,12 +147,83 @@ def create_graph():
 	nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
 	plt.show()
 
+def get_all_elems(rules):
+	elems = ["$"]
+	for rule in rules:
+		for i in rule:
+			for j in i:
+				if(j not in elems):
+					elems.append(j)
+	elems.sort()
+	return elems
+
+def gen_matrix(elems):
+	matrix = []
+	matrix.append([" "]+elems)
+	for i in set_mapping_table:
+		matrix.append([i[0]]+["-"]*len(elems))
+	return matrix
+
+def gen_numbered_rules(rules):
+	num_rules = []
+	counter = 0
+	for rule in rules:
+		for j in rule[1:]:
+			counter+=1
+			num_rules.append([counter,[rule[0],j]])
+	return num_rules
+
+def insert_matrix(matrix,setnum,arrow,value):
+	for i in range(len(matrix)):
+		if(matrix[i][0]==setnum):
+			matrix[i][matrix[0].index(arrow)] = value
+	return matrix
+
+def get_SR_value(setnum,arrow,num_rules):
+	nextset = None
+	for i in set_mapping_table:
+		if(i[0]==setnum):
+			if(i[1][0][1].index(".")==len(i[1][0][1])-1):
+				undottedrule = [i[1][0][0],i[1][0][1].replace(".","")]
+				for num_rule in num_rules:
+					if((num_rule[1]==undottedrule) & (arrow in follow.finding_follow(rules,undottedrule[0]))):
+						return "R"+str(num_rule[0])
+			if((i[1][0][1]=="S.") & (arrow=="$")):
+				return "Accept"
+	for i in dfa_mapping_table:
+		if((i[0]==setnum) & (i[1]==arrow)):
+			nextset = i[2]
+	if((arrow.isupper()) & (nextset!=None)):
+		return nextset
+	if(nextset!=None):
+		return "S"+str(nextset)
+	return nextset
+
+def gen_parsing_table(matrix,num_rules):
+	for i in range(1,len(matrix)):
+		for j in range(1,len(matrix[i])):
+			matrix[i][j] = get_SR_value(matrix[i][0],matrix[0][j],num_rules)
+	return matrix
+
 sets = gen_slr([["S'",".S"]],rules,prevset=None,prevarrow=None)[0]
 print("Sets mapping table (Mapping of numbers to set): ")
 for i in set_mapping_table:
 	print(i)
+
 print("DFA mapping table: ")
 print("Here left element represents initial set number, middle represents arrow and right represents goto set number")
 for i in dfa_mapping_table:
 	print(i)
+
+elems = get_all_elems(rules)
+num_rules = gen_numbered_rules(rules)
+matrix = gen_matrix(elems)
+pars_table = gen_parsing_table(matrix,num_rules)
+
+print("Parsing Table: \n")
+for i in pars_table:
+	for j in i:
+		print(" "*(6-len(str(j)))+str(j),end=" ")
+	print()
+
 create_graph()
