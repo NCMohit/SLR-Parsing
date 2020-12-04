@@ -85,11 +85,12 @@ def gen_new_initrules(arrow,aug_grammar):
 	newinitrules = []
 	for rule in aug_grammar:
 		for x in rule[1:]:
-			dr = x[x.index(".")+1]
-			if(dr==arrow):
-				g = "."+dr
-				right = x.replace(g,g[::-1])
-				newinitrules.append([rule[0],right])
+			if(x.index(".")<len(x)-1):
+				dr = x[x.index(".")+1]
+				if(dr==arrow):
+					g = "."+dr
+					right = x.replace(g,g[::-1])
+					newinitrules.append([rule[0],right])
 	return newinitrules
 
 # aug_grammar = gen_aug_grammar([["S'",".S"]],rules)
@@ -141,7 +142,7 @@ def create_graph():
 	for i in dfa_mapping_table:
 		edges.append([i[0],i[2]])
 		G.add_edge(i[0],i[2])
-		labels[(i[0],i[2])] = i[1]
+		#labels[(i[0],i[2])] = i[1]
 	pos=nx.circular_layout(G)
 	nx.draw_networkx(G, with_label = True, node_color ='green') 
 	nx.draw_networkx_edge_labels(G,pos,edge_labels=labels)
@@ -179,7 +180,12 @@ def insert_matrix(matrix,setnum,arrow,value):
 			matrix[i][matrix[0].index(arrow)] = value
 	return matrix
 
-def get_SR_value(setnum,arrow,num_rules):
+def get_matrix(matrix,setnum,arrow):
+	for i in range(len(matrix)):
+		if(matrix[i][0]==setnum):
+			return matrix[i][matrix[0].index(arrow)]
+
+def get_SR_value(setnum,arrow,num_rules,rules):
 	nextset = None
 	for i in set_mapping_table:
 		if(i[0]==setnum):
@@ -199,11 +205,47 @@ def get_SR_value(setnum,arrow,num_rules):
 		return "S"+str(nextset)
 	return nextset
 
-def gen_parsing_table(matrix,num_rules):
+def gen_parsing_table(matrix,num_rules,rules):
 	for i in range(1,len(matrix)):
 		for j in range(1,len(matrix[i])):
-			matrix[i][j] = get_SR_value(matrix[i][0],matrix[0][j],num_rules)
+			matrix[i][j] = get_SR_value(matrix[i][0],matrix[0][j],num_rules,rules)
 	return matrix
+
+def get_num_rule(num_rules,num):
+	for rule in num_rules:
+		if(rule[0]==num):
+			return rule[1]
+
+def parse_input(inputstring,pars_table,num_rules):
+	inputpointer = 0
+	stack = ["1"]
+	accepted = 0
+	while(inputpointer<len(inputstring)):
+		if(inputstring[inputpointer] not in pars_table[0]):
+			break
+		srval = get_matrix(pars_table,int(stack[len(stack)-1]),inputstring[inputpointer])
+		if((len(stack)==0) | (srval == None)):
+			break
+		if(srval=="Accept"):
+			accepted = 1
+			break
+		elif(srval[0]=="S"):
+			stack.append(inputstring[inputpointer])
+			inputpointer += 1
+			stack.append(srval[1])
+		elif(srval[0]=="R"):
+			lengthreduce = len(get_num_rule(num_rules,int(srval[1]))[1])
+			for i in range(lengthreduce):
+				stack = stack[0:len(stack)-1]
+				stack = stack[0:len(stack)-1]
+			stack.append(get_num_rule(num_rules,int(srval[1]))[0])
+			stack.append(str(get_matrix(pars_table,int(stack[len(stack)-2]),stack[len(stack)-1])))
+		print("Stack: ",stack)
+		print("Input string pointer: ",inputpointer)
+	if(accepted==1):
+		return 1
+	else:
+		return 0
 
 sets = gen_slr([["S'",".S"]],rules,prevset=None,prevarrow=None)[0]
 print("Sets mapping table (Mapping of numbers to set): ")
@@ -218,12 +260,20 @@ for i in dfa_mapping_table:
 elems = get_all_elems(rules)
 num_rules = gen_numbered_rules(rules)
 matrix = gen_matrix(elems)
-pars_table = gen_parsing_table(matrix,num_rules)
+pars_table = gen_parsing_table(matrix,num_rules,rules)
 
 print("Parsing Table: \n")
 for i in pars_table:
 	for j in i:
 		print(" "*(6-len(str(j)))+str(j),end=" ")
 	print()
+
+inputstring = input("Enter a string you want to parse: ")
+
+accepted = parse_input(inputstring+"$",pars_table,num_rules)
+if(accepted==1):
+	print("String accepted")
+else:
+	print("String rejected")
 
 create_graph()
