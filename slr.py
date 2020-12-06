@@ -2,7 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import follow
 
-############          TAKING INPUT FROM TEXT          ################
+########################          TAKING INPUT FROM TEXT          ############################
 
 def filter_rules(rules):
 	newrules = []
@@ -27,7 +27,7 @@ setcount = 0
 dfa_mapping_table = []
 set_mapping_table = []
 
-############          GENERATING AUGMENTED GRAMMAR ( CLOSURE OF INIT RULE )          ################
+########################          GENERATING AUGMENTED GRAMMAR ( CLOSURE OF INIT RULE )          ############################
 
 def set_is_not_complete(dr_vars,finalrules,rules):
 	not_complete = 0
@@ -75,7 +75,7 @@ def gen_aug_grammar(initrules,rules):
 		dr_vars = get_dr_vars(finalrules,rules)
 	return finalrules
 
-############          FINDING ARROWS FOR AUGMENTED GRAMMAR          ################
+########################          FINDING ARROWS FOR AUGMENTED GRAMMAR          ############################
 
 def find_arrows(aug_grammar):
 	drvars = []
@@ -87,7 +87,7 @@ def find_arrows(aug_grammar):
 				drvars.append(dr)
 	return drvars	
 
-############          GENERATING NEW RULES FOR NEXT SET          ################
+########################          GENERATING NEW RULES FOR NEXT SET          ############################
 
 def gen_new_initrules(arrow,aug_grammar):
 	newinitrules = []
@@ -101,7 +101,7 @@ def gen_new_initrules(arrow,aug_grammar):
 					newinitrules.append([rule[0],right])
 	return newinitrules
 
-############          RECURSIVE SLR GENERATION CODE          ################
+########################          RECURSIVE SLR GENERATION CODE          ############################
 
 def get_aug_grammar_number(set_mapping_table,initrule):
 	number = 100
@@ -124,13 +124,14 @@ def gen_slr(initrules,rules,prevset,prevarrow):
 	set_mapping_table.append([setcount,aug_grammar])
 	arrows = find_arrows(aug_grammar)
 	for arrow in arrows:
+		#print(thisset,arrow)
 		newinitrules = gen_new_initrules(arrow,aug_grammar)
 		flag = 0
 		for currentset in globalsets:
 			if(newinitrules[0] in currentset):
 				flag = 1
-				if(newinitrules[0][-1][-1]!="."):
-					dfa_mapping_table.append([thisset,arrow,get_aug_grammar_number(set_mapping_table,newinitrules[0])])
+				# if(newinitrules[0][-1][-1]!="."):
+				dfa_mapping_table.append([thisset,arrow,get_aug_grammar_number(set_mapping_table,newinitrules[0])])
 		if(flag==0):
 			nextsets = gen_slr(newinitrules,rules,prevset= thisset,prevarrow= arrow)
 			sets = sets + nextsets[0]
@@ -191,16 +192,19 @@ def get_matrix(matrix,setnum,arrow):
 		if(matrix[i][0]==setnum):
 			return matrix[i][matrix[0].index(arrow)]
 
-def get_SR_value(setnum,arrow,num_rules,rules):
+def get_SR_value(setnum,arrow,num_rules,rules,temp=0):
 	nextset = None
 	for i in set_mapping_table:
 		if(i[0]==setnum):
 			if(i[1][0][1].index(".")==len(i[1][0][1])-1):
 				undottedrule = [i[1][0][0],i[1][0][1].replace(".","")]
 				for num_rule in num_rules:
+					if(temp==1):
+						if((num_rule[1]==undottedrule)):
+							return "R"+str(num_rule[0])						
 					if((num_rule[1]==undottedrule) & (arrow in follow.finding_follow(rules,undottedrule[0]))):
 						return "R"+str(num_rule[0])
-			if((i[1][0][1]=="S.") & (arrow=="$")):
+			if((i[1][0][1]==rules[0][0]+".") & (arrow=="$")):
 				return "Accept"
 	for i in dfa_mapping_table:
 		if((i[0]==setnum) & (i[1]==arrow)):
@@ -210,6 +214,12 @@ def get_SR_value(setnum,arrow,num_rules,rules):
 	if(nextset!=None):
 		return "S"+str(nextset)
 	return nextset
+
+def gen_temp(matrix,num_rules,rules):
+	for i in range(1,len(matrix)):
+		for j in range(1,len(matrix[i])):
+			matrix[i][j] = get_SR_value(matrix[i][0],matrix[0][j],num_rules,rules,temp=1)
+	return matrix
 
 def gen_parsing_table(matrix,num_rules,rules):
 	for i in range(1,len(matrix)):
@@ -257,7 +267,7 @@ def parse_input(inputstring,pars_table,num_rules):
 
 ############          MAIN CODE EXECUTION         ################
 
-sets = gen_slr([["S'",".S"]],rules,prevset=None,prevarrow=None)[0]
+sets = gen_slr([[rules[0][0]+"'","."+rules[0][0]]],rules,prevset=None,prevarrow=None)[0]
 print("Sets mapping table (Mapping of numbers to set): ")
 for i in set_mapping_table:
 	print(i)
@@ -280,7 +290,7 @@ for i in pars_table:
 
 inputstring = input("Enter a string you want to parse: ")
 
-accepted = parse_input(inputstring+"$",pars_table,num_rules)
+accepted = parse_input(inputstring+"$",gen_temp(matrix,num_rules,rules),num_rules)
 if(accepted==1):
 	print("String accepted")
 else:
